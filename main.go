@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 
 func main() {
@@ -13,6 +16,11 @@ func main() {
 		fmt.Printf("Prev. hash: %x\n", block.PreBlockHash)
 		fmt.Printf("Data: %s\n", block.Data)
 		fmt.Printf("Hash: %x\n", block.Hash)
+		fmt.Println()
+	}
+	for _, block := range bc.blocks {
+		pow := NewProofofWork(block)
+		fmt.Printf("PoW: %s\n", strconv.FormatBool(pow.Validate()))
 		fmt.Println()
 	}
 }
