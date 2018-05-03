@@ -9,7 +9,7 @@ import (
 	"math"
 )
 
-const targetBits = 24
+const targetBits = 1
 
 type ProofOfWork struct {
 	block *Block
