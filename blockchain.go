@@ -3,45 +3,67 @@ package main
 import (
 	"github.com/boltdb/bolt"
 	"log"
+	"os"
+	"fmt"
+	"encoding/hex"
 )
 
 const dbFile = "blockchain.db"
 const blocksBucket = "blocks"
+const genesisCoinbaseData = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks"
+
 
 type BlockChain struct {
 	tip []byte
 	db *bolt.DB
 }
 
-func (bc *BlockChain) AddBlock(data string)  {
-	var lastHash []byte
-	err := bc.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(blocksBucket))
-		lastHash = b.Get([]byte("1"))
-		return nil
-	})
-	if err != nil {
-		log.Panic(err)
-	}
-	newBlock := NewBlock(data, lastHash)
-	err = bc.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(blocksBucket))
-		err := b.Put(newBlock.Hash,newBlock.Serialize())
-		if err != nil {
-			log.Panic(err)
-		}
-		err = b.Put([]byte("1"),newBlock.Hash)
-		bc.tip = newBlock.Hash
-		return nil
-	})
-	//preBlock := bc.blocks[len(bc.blocks)-1]
-	//newBlock := NewBlock(data,preBlock.Hash)
-	//bc.blocks = append(bc.blocks,newBlock)
+type BlockChainIterator struct {
+	currentHash []byte
+	db *bolt.DB
 }
 
-func NewGenesisBlock() *Block{
-	return NewBlock("Genesis Block", []byte{})   //you can write anything on genesis block
+func DbExist() bool {
+	_,err := os.Stat(dbFile)
+	if err != nil{
+		return true
+	}
+	return false
 }
+
+//创建一条新的链
+func CreateNewBlockChain(address string)  *BlockChain{
+	if DbExist(){
+		fmt.Println("Blockchain already exists")
+		os.Exit(1)
+	}
+	var tip []byte
+	db, err := bolt.Open(dbFile,0600,nil)
+	if err!=nil{
+		log.Panic(err)
+	}
+	err = db.Update(func(tx *bolt.Tx) error {
+		cbtx := NewCoinbaseTX(address,genesisCoinbaseData)  //创世coinbase
+		genesisBlock := NewGenesisBlock(cbtx)   //创世块
+
+		bucket, err := tx.CreateBucket([]byte(blocksBucket))
+		if err!=nil{
+			log.Panic(err)
+		}
+		err = bucket.Put(genesisBlock.Hash,genesisBlock.Serialize())
+		if err != nil{
+			log.Panic(err)
+		}
+		tip = genesisBlock.Hash
+		return nil
+	})
+	if err != nil{
+		log.Panic(err)
+	}
+	bc := BlockChain{tip:tip,db:db}
+	return &bc
+}
+
 
 func NewBlockChain() *BlockChain {
 	var tip []byte
@@ -69,10 +91,7 @@ func NewBlockChain() *BlockChain {
 	return &bc
 }
 
-type BlockChainIterator struct {
-	currentHash []byte
-	db *bolt.DB
-}
+
 
 func (bc *BlockChain) Iterator() *BlockChainIterator {
 	bci := &BlockChainIterator{bc.tip, bc.db}
@@ -94,4 +113,45 @@ func (i *BlockChainIterator) Next() *Block {
 	}
 	i.currentHash = block.PreBlockHash
 	return block
+}
+
+
+//不是太懂
+func (bc *BlockChain) FindUnspentTransactions(address string) []*Transaction {
+	var unspentTXs []*Transaction
+	spentTXOs := make(map[string][]int)
+	bci := bc.Iterator()
+
+	for {
+		block := bci.Next()
+		for _,tx := range block.Transactions{
+			txId := hex.EncodeToString(tx.ID)
+
+			Outputs:
+				for outIdx,out := range tx.Vout{
+					if spentTXOs[txId] != nil{
+						for _,spentOut := range spentTXOs[txId]{
+							if spentOut == outIdx{
+								continue Outputs
+							}
+						}
+					}
+					if out.CanUnlockInputWith(address){
+						unspentTXs = append(unspentTXs,tx)
+					}
+				}
+				if tx.isCoinbase() == false{
+					for _,in := range tx.Vin{
+						if in.CanUnlockOutputWith(address){
+							inTxID := hex.EncodeToString(in.Txid)
+							spentTXOs[inTxID] = append(spentTXOs[inTxID],in.Vout)
+						}
+					}
+				}
+		}
+		if len(block.PreBlockHash) == 0{
+			break
+		}
+	}
+	return unspentTXs
 }

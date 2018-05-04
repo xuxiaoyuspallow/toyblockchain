@@ -5,19 +5,33 @@ import (
 	"bytes"
 	"encoding/gob"
 	"log"
+	"crypto/sha256"
 )
 
 type Block struct {
 	Timestamp  int64
-	Data  []byte
+	Transactions  []*Transaction
 	PreBlockHash []byte
 	Hash []byte
 	Nonce int
 }
 
+func NewGenesisBlock(coinbase *Transaction) *Block{
+	return NewBlock([]*Transaction{coinbase}, []byte{})   //you can write anything on genesis block
+}
 
-func NewBlock(data string,preblockhash []byte)  *Block{
-	block := &Block{time.Now().Unix(),[]byte(data),preblockhash,[]byte{},0}
+func (b *Block)HashTransactions() []byte {
+	var txHashes [][]byte
+	var hash [32]byte
+	for _,tx := range b.Transactions{
+		txHashes = append(txHashes,tx.ID)
+	}
+	hash = sha256.Sum256(bytes.Join(txHashes,[]byte{}))
+	return hash[:]
+}
+
+func NewBlock(tx []*Transaction,preblockhash []byte)  *Block{
+	block := &Block{time.Now().Unix(),tx,preblockhash,[]byte{},0}
 	pow := NewProofofWork(block)
 	nonce, hash := pow.Run()
 	block.Hash = hash[:]
