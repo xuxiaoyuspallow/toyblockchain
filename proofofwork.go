@@ -3,13 +3,12 @@ package main
 import (
 	"math/big"
 	"bytes"
-	"strconv"
 	"fmt"
 	"crypto/sha256"
 	"math"
 )
 
-const targetBits = 1
+const targetBits = 24
 
 type ProofOfWork struct {
 	block *Block
@@ -23,9 +22,6 @@ func NewProofofWork(b *Block) *ProofOfWork  {
 	return pow
 }
 
-func IntToHex(n int64) []byte {
-	return []byte(strconv.FormatInt(n, 16))
-}
 
 func (pow *ProofOfWork) prepareData(nonce int) []byte  {
 	data := bytes.Join(
@@ -46,7 +42,7 @@ func (pow *ProofOfWork) Run() (int, []byte) {
 	var hash [32]byte
 	nonce := 0
 
-	fmt.Printf("Mining the block containing \"%s\"\n",pow.block.Data)
+	fmt.Printf("Mining a new block")
 	for nonce < math.MaxInt64{
 		data := pow.prepareData(nonce)
 		hash = sha256.Sum256(data)
@@ -58,6 +54,7 @@ func (pow *ProofOfWork) Run() (int, []byte) {
 			nonce ++
 		}
 	}
+	fmt.Println("aaaa")
 	fmt.Print("\n\n")
 	return nonce,hash[:]
 }
