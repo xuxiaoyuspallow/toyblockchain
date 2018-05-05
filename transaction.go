@@ -6,6 +6,7 @@ import (
 	"encoding/gob"
 	"log"
 	"crypto/sha256"
+	"encoding/hex"
 )
 
 const subsidy = 10   //发现一个新区块时的奖励
@@ -29,8 +30,9 @@ type Transaction struct {
 	Vout []TXOutput
 }
 
+// no input and input.Vout == -1, we consider it a coinbase transaction
 func (tx *Transaction)isCoinbase()  bool{
-	return len(tx.Vin)==1 && tx.Vin[0].Txid == 0 && tx.Vin[0].Vout == -1
+	return len(tx.Vin)==1 && len(tx.Vin[0].Txid) == 0 && tx.Vin[0].Vout == -1
 }
 
 //序列化transaction之后hash得到交易ID
@@ -72,4 +74,28 @@ func NewCoinbaseTX(to, data string) *Transaction{
 
 
 
-
+func NewUTXOTransaction(from, to string,amount int,bc *BlockChain) *Transaction{
+	var inputs []TXInput
+	var outputs []TXOutput
+	acc, validOutputs := bc.FindSpendableOutputs(from,amount)
+	if acc < amount{
+		log.Panic("ERROR:NOT ENOUGN FUNDS")
+	}
+	for txid,outs := range validOutputs{
+		txidstring, err := hex.DecodeString(txid)
+		if err != nil{
+			log.Panic(err)
+		}
+		for _, out := range outs{
+			input := TXInput{txidstring,out,from}
+			inputs = append(inputs,input)
+		}
+	}
+	outputs = append(outputs,TXOutput{amount,to})
+	if acc > amount{
+		outputs = append(outputs,TXOutput{acc-amount,from})
+	}
+	tx := Transaction{nil,inputs,outputs}
+	tx.SetID()
+	return &tx
+}
