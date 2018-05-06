@@ -14,13 +14,14 @@ const subsidy = 10   //发现一个新区块时的奖励
 
 type TXOutput struct {
 	value int		//  交易的数值
-	ScriptPubkey string   //加密value的公玥
+	PubKeyHash []byte   //加密value的公玥
 }
 
 type TXInput struct {
 	Txid []byte   //transaction id
 	Vout int    // stores an index of an output in the transaction
-	ScripSig string  // 解密ScriptPubkey的私玥
+	Signature []byte  // 解密ScriptPubkey的私玥
+	PubKey    []byte
 }
 
 // 交易结构体
@@ -49,19 +50,26 @@ func (tx *Transaction) SetID()  {
 	tx.ID = hash[:]
 }
 
-func (in *TXInput)CanUnlockOutputWith(sig string) bool {
-	return sig == in.ScripSig
+func (in *TXInput)UsesKey(pubKeyHash []byte) bool {
+	lockingHash := HashPubKey(in.PubKey)
+	return bytes.Compare(lockingHash,pubKeyHash) == 0
 }
 
-func (out *TXOutput)CanUnlockInputWith(pubkey string) bool  {
-	return pubkey == out.ScriptPubkey
+func (out *TXOutput)Lock(address []byte)  {
+	pubKeyHash := Base58Decode(address)
+	pubKeyHash = pubKeyHash[1:len(pubKeyHash)-addressChecksumLen]
+	out.PubKeyHash = pubKeyHash
+}
+
+func (out *TXOutput)IsLockedWithKey(pubKeyHash []byte) bool  {
+	return bytes.Compare(out.PubKeyHash,pubKeyHash) == 0
 }
 
 
 /*先有input还是先有output是一个鸡生蛋蛋生鸡的问题，但在bitcoin里面，先有output，因为每个区块的
 第一笔交易是矿工奖励给自己的，称为coinbase交易
 */
-func NewCoinbaseTX(to, data string) *Transaction{
+func NewCoinbaseTX(to, data []byte) *Transaction{
 	if data == ""{
 		data = fmt.Sprint("Reward to '%s'",to)
 	}

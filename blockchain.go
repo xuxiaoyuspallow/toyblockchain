@@ -56,7 +56,7 @@ func CreateNewBlockChain(address string)  *BlockChain{
 	if err != nil{
 		log.Panic(err)
 	}
-	bc := BlockChain{tip:tip,db:db}
+	bc := BlockChain{tip,db}
 	return &bc
 }
 
