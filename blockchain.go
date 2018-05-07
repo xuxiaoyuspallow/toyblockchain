@@ -77,9 +77,6 @@ func NewBlockChain(address string) *BlockChain {
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(blocksBucket))
 			tip = b.Get([]byte("l"))
-			//value := b.Get(tip)
-			//valu1 := DeserializeBlock(value)
-			//fmt.Println(valu1)
 			return nil
 	})
 	if err != nil{
