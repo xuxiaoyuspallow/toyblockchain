@@ -13,5 +13,6 @@ func (cli *CLI)listAddress()  {
 	addresses := wallets.GetAddresses()
 	for _, address := range addresses{
 		fmt.Printf(address)
+		fmt.Printf("\n")
 	}
 }
