@@ -13,7 +13,7 @@ const subsidy = 10   //发现一个新区块时的奖励
 
 
 type TXOutput struct {
-	value int		//  交易的数值
+	Value int		//  交易的数值
 	PubKeyHash []byte   //加密value的公玥
 }
 
