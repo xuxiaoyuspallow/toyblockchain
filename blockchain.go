@@ -176,7 +176,7 @@ func (bc *BlockChain) FindSpendableOutputs(address string,amount int) (int, map[
 			txID := hex.EncodeToString(tx.ID)
 			for outIdx, out := range tx.Vout{
 				if out.CanUnlockInputWith(address) && accunmulated < amount{
-					accunmulated += out.value
+					accunmulated += out.Value
 					unspentOutputs[txID] = append(unspentOutputs[txID],outIdx)
 					if accunmulated >= amount{
 						break WORK
