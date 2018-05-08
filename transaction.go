@@ -23,7 +23,7 @@ type Transaction struct {
 }
 
 // no input and input.Vout == -1, we consider it a coinbase transaction
-func (tx *Transaction)isCoinbase()  bool{
+func (tx *Transaction)IsCoinbase()  bool{
 	return len(tx.Vin)==1 && len(tx.Vin[0].Txid) == 0 && tx.Vin[0].Vout == -1
 }
 
@@ -57,7 +57,7 @@ func NewCoinbaseTX(to, data string) *Transaction{
 
 
 
-func NewUTXOTransaction(from, to string,amount int,bc *BlockChain) *Transaction{
+func NewUTXOTransaction(from, to string,amount int,utxoSet *UTXOSet) *Transaction{
 	var inputs []TXInput
 	var outputs []TXOutput
 
@@ -67,7 +67,7 @@ func NewUTXOTransaction(from, to string,amount int,bc *BlockChain) *Transaction{
 	}
 	wallet := wallets.GetWallet(from)
 	pubKeyHash := HashPubKey(wallet.PublicKey)
-	acc, validOutputs := bc.FindSpendableOutputs(pubKeyHash,amount)
+	acc, validOutputs := utxoSet.FindSpendableOutputs(pubKeyHash,amount)
 	if acc < amount{
 		log.Panic("ERROR:NOT ENOUGN FUNDS")
 	}
@@ -87,7 +87,7 @@ func NewUTXOTransaction(from, to string,amount int,bc *BlockChain) *Transaction{
 	}
 	tx := Transaction{nil,inputs,outputs}
 	tx.ID = tx.Hash()
-	bc.SignTransaction(&tx,wallet.PrivateKey)
+	utxoSet.BlockChain.SignTransaction(&tx,wallet.PrivateKey)
 	return &tx
 }
 
@@ -126,7 +126,7 @@ func (tx *Transaction)TrimmedCopy() Transaction {
 }
 
 func (tx *Transaction)Sign(privateKey ecdsa.PrivateKey,prevTxs map[string]Transaction)  {
-	if tx.isCoinbase(){
+	if tx.IsCoinbase(){
 		return
 	}
 	txCopy := tx.TrimmedCopy()
@@ -148,7 +148,7 @@ func (tx *Transaction)Sign(privateKey ecdsa.PrivateKey,prevTxs map[string]Transa
 }
 
 func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
-	if tx.isCoinbase(){
+	if tx.IsCoinbase(){
 		return true
 	}
 	for _, vin := range tx.Vin{
