@@ -4,6 +4,8 @@ import "fmt"
 
 func (cli * CLI) createBlockchain(address string)  {
 	bc := CreateNewBlockChain(address)
-	bc.db.Close()
+	defer bc.db.Close()
+	utxoSet := UTXOSet{bc}
+	utxoSet.Reindex()
 	fmt.Println("create block chain done")
 }

@@ -70,7 +70,7 @@ func (cli *CLI) Run() {
 		if err != nil {
 			log.Panic(err)
 		}
-	case "listaddress":
+	case "listaddresses":
 		err := listAddressCmd.Parse(os.Args[2:])
 		if err != nil {
 			log.Panic(err)
