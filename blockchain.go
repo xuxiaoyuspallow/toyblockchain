@@ -64,7 +64,7 @@ func CreateNewBlockChain(address string)  *BlockChain{
 }
 
 
-func NewBlockChain(address string) *BlockChain {
+func NewBlockChain() *BlockChain {
 	if DbExist() == false{
 		fmt.Println("No existing blockchain found.Create one first")
 		os.Exit(1)
@@ -135,7 +135,7 @@ func (bc *BlockChain) FindUnspentTransactions(pubKeyHash []byte) []*Transaction 
 						unspentTXs = append(unspentTXs,tx)
 					}
 				}
-				if tx.isCoinbase() == false{
+				if tx.IsCoinbase() == false{
 					for _,in := range tx.Vin{
 						if in.UsesKey(pubKeyHash){
 							inTxID := hex.EncodeToString(in.Txid)
@@ -153,14 +153,36 @@ func (bc *BlockChain) FindUnspentTransactions(pubKeyHash []byte) []*Transaction 
 
 
 //get all outputs which can unlocked by private key from transactions that have unspent output
-func (bc *BlockChain) FindUTXO(pubKeyHash []byte) []TXOutput{
-	var UTXOs []TXOutput
-	unspenttarnsactions := bc.FindUnspentTransactions(pubKeyHash)
-	for _,tx := range unspenttarnsactions{
-		for _, out := range tx.Vout{
-			if out.IsLockedWithKey(pubKeyHash){
-				UTXOs = append(UTXOs,out)
+func (bc *BlockChain) FindUTXO() map[string]TXOutputs{
+	UTXOs := make(map[string]TXOutputs)
+	spentTXO := make(map[string][]int)
+	bci := bc.Iterator()
+	for{
+		block := bci.Next()
+		for _,transaction := range block.Transactions {
+			txId := hex.EncodeToString(transaction.ID)
+		Outputs:
+			for outIdx, out := range transaction.Vout{
+				if spentTXO[txId] != nil{
+					for _, spentTxId := range spentTXO[txId]{
+						if spentTxId == outIdx{
+							continue Outputs
+						}
+					}
+				}
+				temp := UTXOs[txId]
+				temp.Outputs = append(temp.Outputs,out)
+				UTXOs[txId] = temp
 			}
+			if transaction.IsCoinbase() == false{
+				for _, vin := range transaction.Vin{
+					inTXId := hex.EncodeToString(vin.Txid)
+					spentTXO[inTXId] = append(spentTXO[txId],vin.Vout)
+				}
+			}
+		}
+		if len(block.PreBlockHash) == 0{
+			break
 		}
 	}
 	return UTXOs
@@ -188,7 +210,7 @@ func (bc *BlockChain) FindSpendableOutputs(pubKeyHash []byte,amount int) (int, m
 }
 
 // MineBlock mines a new block with the provided transactions
-func (bc *BlockChain) MineBlock(transactions []*Transaction) {
+func (bc *BlockChain) MineBlock(transactions []*Transaction) *Block{
 	var lastHash []byte
 
 	for _, tx := range transactions{
@@ -225,6 +247,10 @@ func (bc *BlockChain) MineBlock(transactions []*Transaction) {
 
 		return nil
 	})
+	if err != nil{
+		log.Panic(err)
+	}
+	return newBlock
 }
 
 func (bc *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
@@ -262,6 +288,9 @@ func (bc *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateKey)
 }
 
 func (bc *BlockChain) VerifyTransaction(tx *Transaction) bool {
+	if tx.IsCoinbase(){
+		return true
+	}
 	prevTXs := make(map[string]Transaction)
 
 	for _, vin := range tx.Vin {
