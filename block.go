@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/gob"
 	"log"
-	"crypto/sha256"
 )
 
 type Block struct {
@@ -20,14 +19,15 @@ func NewGenesisBlock(coinbase *Transaction) *Block{
 	return NewBlock([]*Transaction{coinbase}, []byte{})   //you can write anything on genesis block
 }
 
-func (b *Block)HashTransactions() []byte {
-	var txHashes [][]byte
-	var hash [32]byte
-	for _,tx := range b.Transactions{
-		txHashes = append(txHashes,tx.ID)
+func (b *Block) HashTransactions() []byte {
+	var transactions [][]byte
+
+	for _, tx := range b.Transactions {
+		transactions = append(transactions, tx.Serialize())
 	}
-	hash = sha256.Sum256(bytes.Join(txHashes,[]byte{}))
-	return hash[:]
+	mTree := NewMerkleTree(transactions)
+
+	return mTree.Node.Data
 }
 
 func NewBlock(tx []*Transaction,preblockhash []byte)  *Block{
